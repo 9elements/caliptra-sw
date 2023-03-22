@@ -8,8 +8,6 @@ Abstract:
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(not(feature = "std"), no_main)]
 
-#[cfg(not(feature = "std"))]
-core::arch::global_asm!(include_str!("start.S"));
 #[macro_use]
 extern crate caliptra_common;
 
@@ -32,7 +30,7 @@ const BANNER: &str = r#"
 "#;
 
 #[no_mangle]
-pub extern "C" fn fmc_entry() -> ! {
+pub extern "C" fn entry_point() -> ! {
     cprintln!("{}", BANNER);
 
     if let Some(_fht) = FirmwareHandoffTable::try_load() {
