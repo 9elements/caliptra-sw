@@ -4,6 +4,10 @@
 #[cfg(not(feature = "std"))]
 #[cfg(feature = "riscv")]
 core::arch::global_asm!(include_str!("start.S"));
+#[cfg(feature = "riscv")]
+core::arch::global_asm!(include_str!("nmi.S"));
+#[cfg(feature = "riscv")]
+core::arch::global_asm!(include_str!("trap.S"));
 
 pub mod trap;
 
