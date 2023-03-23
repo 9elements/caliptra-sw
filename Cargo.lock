@@ -209,10 +209,20 @@ version = "0.1.0"
 name = "caliptra-fmc"
 version = "0.1.0"
 dependencies = [
+ "caliptra-builder",
  "caliptra-cpu",
  "caliptra-lib",
- "caliptra-registers",
  "caliptra_common",
+ "cfg-if",
+ "ufmt",
+ "zerocopy",
+]
+
+[[package]]
+name = "caliptra-fmc-test-rt"
+version = "0.1.0"
+dependencies = [
+ "caliptra-lib",
  "cfg-if",
  "ufmt",
 ]
@@ -359,7 +369,6 @@ version = "0.1.0"
 dependencies = [
  "caliptra-cpu",
  "caliptra-lib",
- "caliptra-registers",
  "caliptra_common",
  "cfg-if",
  "ufmt",

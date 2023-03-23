@@ -14,6 +14,7 @@ members = [
   "drivers",
   "drivers/test-fw",
   "fmc",
+  "fmc/tools/test-rt",
   "hw-latest/verilated",
   "hw-model",
   "registers",

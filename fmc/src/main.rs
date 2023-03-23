@@ -1,40 +1,53 @@
 /*++
+
 Licensed under the Apache-2.0 license.
+
 File Name:
+
     main.rs
+
 Abstract:
-    File contains main entry point for Caliptra FMC
+
+    File contains main entry point for Caliptra ROM Test FMC
+
 --*/
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(not(feature = "std"), no_main)]
 
-#[macro_use]
-extern crate caliptra_common;
+use caliptra_common::{Env, FirmwareHandoffTable};
 
-use caliptra_common::hand_off::FirmwareHandoffTable;
-use caliptra_common::Env;
+#[cfg(not(feature = "std"))]
+core::arch::global_asm!(include_str!("start.S"));
 
-use caliptra_cpu::trap::TrapRecord;
+use caliptra_cpu::TrapRecord;
+
+mod print;
 
 #[cfg(feature = "std")]
 pub fn main() {}
 
 const BANNER: &str = r#"
-  ____      _ _       _               _____ __  __  ____
- / ___|__ _| (_)_ __ | |_ _ __ __ _  |  ___|  \/  |/ ___|
-| |   / _` | | | '_ \| __| '__/ _` | | |_  | |\/| | |
-| |__| (_| | | | |_) | |_| | | (_| | |  _| | |  | | |___
- \____\__,_|_|_| .__/ \__|_|  \__,_| |_|   |_|  |_|\____|
-               |_|
+Running Caliptra FMC ...
 "#;
 
 #[no_mangle]
-pub extern "C" fn entry_point() -> ! {
+pub extern "C" fn fmc_entry() -> ! {
     cprintln!("{}", BANNER);
 
-    let env = Env::default();
+    if let Some(fht) = FirmwareHandoffTable::try_load() {
+        cprintln!("[fmc] FHT Marker: 0x{:08X}", fht.fht_marker);
+        cprintln!("[fmc] FHT Major Version: 0x{:04X}", fht.fht_major_ver);
+        cprintln!("[fmc] FHT Minor Version: 0x{:04X}", fht.fht_minor_ver);
+        cprintln!("[fmc] FHT Manifest Addr: 0x{:08X}", fht.manifest_load_addr);
+        cprintln!("[fmc] FHT FMC CDI KV KeyID: {}", fht.fmc_cdi_kv_idx);
+        cprintln!(
+            "[fmc] FHT FMC PrivKey KV KeyID: {}",
+            fht.fmc_priv_key_kv_idx
+        );
+        cprintln!("[fmc] FHT RT Load Address: 0x{:08x}", fht.rt_fw_load_addr);
+        cprintln!("[fmc] FHT RT Entry Point: 0x{:08x}", fht.rt_fw_load_addr);
 
-    if let Some(_fht) = FirmwareHandoffTable::try_load() {
+        let env = Env::default();
         launch_rt(&env)
     } else {
         caliptra_lib::ExitCtrl::exit(0xff)
@@ -71,7 +84,6 @@ extern "C" fn nmi_handler(trap_record: &TrapRecord) {
 
     loop {}
 }
-
 #[panic_handler]
 #[inline(never)]
 #[cfg(not(feature = "std"))]

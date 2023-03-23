@@ -42,6 +42,7 @@ pub fn build_firmware_elf(fw_crate_name: &str, bin_name: &str) -> io::Result<Vec
             .arg("--target")
             .arg(TARGET)
             .arg("--features=emu,riscv")
+            .arg("--no-default-features")
             .arg("--profile")
             .arg(PROFILE)
             .arg("-p")

@@ -1,14 +1,12 @@
 # Licensed under the Apache-2.0 license
 
 [package]
-name = "caliptra-runtime"
+name = "caliptra-fmc-test-rt"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-caliptra_common = { path = "../common", default-features = false }
-caliptra-cpu = { version = "0.1.0", path = "../cpu" }
-caliptra-lib = { path = "../drivers" }
+caliptra-lib = { path = "../../../drivers" }
 ufmt = "0.2.0"
 
 [build-dependencies]
