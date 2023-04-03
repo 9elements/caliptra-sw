@@ -39,12 +39,12 @@ As an architecture specification for FMC, this document describes the following 
 | TCI                 | Trusted Component Identifier                                              |
 | SVN                 | Security Version Number                                                   |
 
-## Overview
+## 1. Overview
 
 First Mutable Code (FMC) is the first field-updatable firmware module in the Caliptra boot sequence. It is loaded, cryptographically verified,
 and executed by the Caliptra ROM.
 
-### Pre-Conditions / Assumptions
+### 1.1 Pre-Conditions / Assumptions
 
 It is assumed that the Caliptra ROM has already performed a series of steps to prepare the Caliptra environment before calling the FMC entry point. The
 following is a brief overview of those expectations. Further details can be found in the Caliptra ROM Specification.
@@ -77,7 +77,7 @@ Crypto boundary):
 
 </center>
 
-### FMC Responsibilities
+### 1.2 FMC Responsibilities
 
 FMC can be thought of as essentially a small, mutable extension of the ROM. Its primary purpose is to bridge execution from the immutable ROM code, prepare the
 environment for the main runtime firmware, and then execute that runtime firmware. As such, the code should be kept to the bare minimum needed to perform that
@@ -96,7 +96,7 @@ task. “Feature-creep” in this area is undesirable, and all efforts shall be 
   CDI<sub>FMC</sub> and PrivateKey<sub>FMC</sub> unavailable.
 - FMC must execute the Runtime Firmware Module.
 
-## Firmware Handoff Table
+## 1.3 Firmware Handoff Table
 
 The Firmware Handoff Table is a data structure that is resident at a well-known location in DCCM. It is initially populated by ROM and modified by FMC as a way
 to pass parameters and configuration information from one firmware layer to the next.
@@ -221,31 +221,69 @@ This field provides the index into the Data Vault where the SVN<sub>RT</sub> is 
 
 This area is reserved for definition of additional fields that may be added during Minor version updates of the FHT.
 
-## FMC Boot Flow
+## 2. FMC Boot Flow
 
+### 2.1 Initialization
+
+The initialization step involves tradition startup script for microcontroller. The initialization script performs following:
+- Resets instruction counter
+- Disables interrupts
+- Set up stack pointer
+- Copy Data section to DCCM (if required)
+- Jumps to Rust entry point
+
+### 2.2 Handoff from ROM
+
+The handoff from ROM consists of locating the Firmware Handoff Table (FHT), which is placed by ROM at a well known address CALIPTRA_FHT_ADDR in DCCM.    
+
+- FMC sanity checks FHT by verifying that fht.fht_marker == ‘CFHT’ and version is known/supported by FMC.
+- FMC locates the discrete FW-based FIPS Crypto Module in ICCM using fht.fips_fw_base_addr (if not 0xFFFF_FFFF) and calls its initialization routine. Otherwise FMC
+utilizes the ROM-based FIPS Crypto Module or its own internal FIPS Crypto services in implementations without a discrete FW-based FIPS Crypto Module.
+- FMC locates the Manifest at fht.manifest_load_addr.
 The following list of steps are to be performed by FMC on each boot when ROM jumps to its entry point:
 
-1. FMC locates the Firmware Handoff Table (FHT) responsible for passing vital configuration and other data from one firmware layer to the next. This is found
-   at well-known address CALIPTRA_FHT_ADDR.
-1. FMC sanity checks FHT by verifying that fht.fht_marker == ‘CFHT’ and version is known/supported by FMC.
-1. FMC locates the discrete FW-based FIPS Crypto Module in ICCM using fht.fips_fw_base_addr (if not 0xFFFF_FFFF) and calls its initialization routine. Otherwise FMC
-   utilizes the ROM-based FIPS Crypto Module or its own internal FIPS Crypto services in implementations without a discrete FW-based FIPS Crypto Module.
-1. FMC locates the Manifest at fht.manifest_load_addr.
-1. FMC reads the measurement of the Runtime FW Module, TCI<sub>RT</sub>, from the Data Vault that has previously been validated by ROM.
-1. FMC extends Caliptra PCR registers with TCI<sub>RT</sub>.
-1. FMC derives CDI<sub>RT</sub> from CDI<sub>FMC</sub> mixed with TCI<sub>RT</sub> and stores it in the Key Vault.
-1. FMC updates fht.rt_cdi_kv_idx in the FHT.
-1. FMC derives AliasKeyPair<sub>RT</sub> from CDI<sub>RT</sub>. The Private Key is stored in the Key Vault while the Public Key X and Y coordinates are stored
+### 2.3 Runtime Alias Layer & PCR Extension
+
+
+- FMC reads the measurement of the Runtime FW Module, TCI<sub>RT</sub>, from the Data Vault that has previously been validated by ROM.
+- FMC extends Caliptra PCR registers with TCI<sub>RT</sub>.
+- FMC derives CDI<sub>RT</sub> from CDI<sub>FMC</sub> mixed with TCI<sub>RT</sub> and stores it in the Key Vault.
+- FMC updates fht.rt_cdi_kv_idx in the FHT.
+- FMC derives AliasKeyPair<sub>RT</sub> from CDI<sub>RT</sub>. The Private Key is stored in the Key Vault while the Public Key X and Y coordinates are stored
    in the Data Vault.
-1. FMC updates fht.rt_priv_key_kv_idx, fht.rt_pub_key_x_dv_idx, and fht.rt_pub_key_y_dv_idx in the FHT.
-1. FMC generates an x509 certificate with PubKey<sub>RT</sub> as the subject and signed by PrivKey<sub>FMC</sub>.
-1. FMC stores the Cert<sub>RT</sub> signature in the Data Vault.
-1. FMC updates fht.rt_cert_sig_r_dv_idx and fht.rt_cert_sig_r_dv_idx in the FHT.
-1. FMC ensures that CDI<sub>FMC</sub> and PrivateKey<sub>FMC</sub> are locked to block further usage until the next boot.
-1. FMC locates the Runtime FW Module in ICCM at fht.rt_fw_load_addr.
-1. FMC jumps to the Runtime FW Module entry point at fht.rt_fw_entry_point.
+- FMC updates fht.rt_priv_key_kv_idx, fht.rt_pub_key_x_dv_idx, and fht.rt_pub_key_y_dv_idx in the FHT.
+- FMC generates an x509 certificate with PubKey<sub>RT</sub> as the subject and signed by PrivKey<sub>FMC</sub>.
+- FMC stores the Cert<sub>RT</sub> signature in the Data Vault.
+- FMC updates fht.rt_cert_sig_r_dv_idx and fht.rt_cert_sig_r_dv_idx in the FHT.
+- FMC ensures that CDI<sub>FMC</sub> and PrivateKey<sub>FMC</sub> are locked to block further usage until the next boot.
+- FMC locates the Runtime FW Module in ICCM at fht.rt_fw_load_addr.
+- FMC jumps to the Runtime FW Module entry point at fht.rt_fw_entry_point.
+
+
+**Pre-Conditions:**
+* Vault state as follows:
+
+| Slot | Key Vault | PCR Bank | Data Vault 48 Byte (Sticky) | Data Vault 4 Byte (Sticky) |
+|------|-----------|----------|-----------------------------|----------------------------|
+| 0 | UDS (48 bytes) | | 🔒LDevID Pub Key X | 🔒FMC SVN |
+| 1 | Field entropy (32 bytes) | | 🔒LDevID Pub Key Y | 🔒Manufacturer Public Key Index |
+| 2 | | | 🔒LDevID Cert Signature R |
+| 3 | | | 🔒LDevID Cert Signature S |
+| 4 | | | 🔒Alias FMC Pub Key X |
+| 5 | LDevID Private Key (48 bytes) | | 🔒Alias FMC Pub Key Y |
+| 6 | Alias FMC CDI (48 bytes) | | 🔒Alias FMC Cert Signature R |
+| 7 | Alias FMC Private Key (48 bytes) | | 🔒Alias FMC Cert Signature S |
+| 8 |  | | 🔒FMC Digest |
+| 9 |  | | 🔒Owner PK Hash |
+
+
+*	Alias FMC CDI is stored in Key Vault Slot 6
+*	Alias FMC Private Key is stored in Key Vault Slot 5
+*	Firmware Image Bundle is successfully loaded and verified from the Mailbox
+
 
 <center>
+
 
 <br> *FMC Boot Sequence*
 
@@ -297,11 +335,11 @@ sequenceDiagram
 
 </center>
 
-## FMC Firmware Update Flow
+## 2.1 FMC Firmware Update Flow
 
 **TBD: Is this section needed?**
 
-## FMC Recovery Flow
+## 2.2 FMC Recovery Flow
 
 *Section to be filled in.*
 
