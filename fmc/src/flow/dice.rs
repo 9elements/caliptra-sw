@@ -45,9 +45,17 @@ pub struct DiceInput {
 
     /// Temporary KeyId used during DICE derivations
     pub uds_key: KeyId,
+}
 
-    /// Field entropy key.
-    pub fe_key: KeyId,
+impl DiceInput {
+    pub fn to_output(&self, key_pair: Ecc384KeyPair, sn: [u8; 64], key_id: [u8; 20]) -> DiceOutput {
+        DiceOutput {
+            cdi: self.cdi,
+            subj_key_pair: key_pair,
+            subj_sn: sn,
+            subj_key_id: key_id,
+        }
+    }
 }
 
 /// DICE Layer Output
