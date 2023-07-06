@@ -67,7 +67,10 @@ impl<'a> ImageVerificationEnv for &mut RomImageVerificationEnv<'a> {
             s: sig.s.into(),
         };
 
-        self.ecc384.verify(&pub_key, &digest, &sig)
+        let mut verify_r = self.ecc384.verify_r(&pub_key, &digest, &sig)?;
+        let result = verify_r == sig.r;
+        verify_r.0.fill(0);
+        Ok(result)
     }
 
     fn lms_verify(

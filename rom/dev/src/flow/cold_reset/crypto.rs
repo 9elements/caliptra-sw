@@ -208,8 +208,10 @@ impl Crypto {
     ) -> CaliptraResult<bool> {
         let mut digest = Self::sha384_digest(env, data);
         let digest = okmutref(&mut digest)?;
-        let result = env.ecc384.verify(pub_key, digest, sig);
+        let mut verify_r = env.ecc384.verify_r(pub_key, digest, sig)?;
         digest.0.fill(0);
-        result
+        let result = verify_r == sig.r;
+        verify_r.0.fill(0);
+        Ok(result)
     }
 }
